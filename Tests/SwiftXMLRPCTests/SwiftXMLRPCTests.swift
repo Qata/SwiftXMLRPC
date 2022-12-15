@@ -60,36 +60,98 @@ enum XMLRPCTestParameter {
         }
     }
 
-    var value: String {
-        let name = valueName
-        return "<value><\(name)>\(contents)</\(name)></value>"
-    }
-
-    var contents: String {
-        switch self {
-        case let .string(value):
-            return value
-        case let .array(contents):
-            return "<data>\(contents.map(\.value).joined())</data>"
-        case let .struct(contents):
-            return contents
-                .map { "<member><name>\($0)</name>\($1.value)</member>" }
-                .joined()
-        case let .data(value):
-            return value
-        case let .date(value):
-            return value
-        case let .bool(value):
-            return value
-        case let .int(value):
-            return value
-        case let .double(value):
-            return value
+    func value(spaces: Gen<String>) -> Gen<String> {
+        .zipWith(spaces.proliferate(withSize: 4), .pure(valueName), contents(spaces: spaces)) {
+            "\($0[0])<value>\($0[1])<\($1)>\($2)</\($1)>\($0[2])</value>\($0[3])"
         }
     }
 
-    public func serialize() -> String {
-        value
+    func contents(spaces: Gen<String>) -> Gen<String> {
+        switch self {
+        case let .string(value):
+            return .pure(value)
+        case let .array(contents):
+            return .zipWith(
+                spaces.proliferate(withSize: 4),
+                sequence(contents.map { $0.value(spaces: spaces) }).map { $0.joined() }
+            ) {
+                "\($0[0])<data>\($0[1])\($1)\($0[2])</data>\($0[3])"
+            }
+        case let .struct(contents):
+            return spaces.proliferate(withSize: 3).flatMap { s in
+                sequence(
+                    contents.map { key, value in
+                        value.value(spaces: spaces).map {
+                            "\(s[0])<member>\(s[1])<name>\(key)</name>\($0)</member>\(s[2])"
+                        }
+                    }
+                ).map { $0.joined() }
+            }
+        case let .data(value):
+            return .pure(value)
+        case let .date(value):
+            return .pure(value)
+        case let .bool(value):
+            return .pure(value)
+        case let .int(value):
+            return .pure(value)
+        case let .double(value):
+            return .pure(value)
+        }
+    }
+
+    public func serialize(spaces: Gen<String>) -> Gen<String> {
+        value(spaces: spaces)
+    }
+}
+
+extension XMLRPCTestParameter: Arbitrary {
+    static var arbitrary: Gen<XMLRPCTestParameter> {
+        XMLRPC.Parameter.arbitrary.map {
+            func recurse(_ param: XMLRPC.Parameter) -> XMLRPCTestParameter {
+                switch param {
+                case let .string(value):
+                    return .string(
+                        value
+                            .replacingOccurrences(of: "&", with: "&amp;")
+                            .replacingOccurrences(of: "<", with: "&lt;")
+                            .replacingOccurrences(of: ">", with: "&gt;")
+                            .replacingOccurrences(of: "'", with: "&apos;")
+                            .replacingOccurrences(of: "\"", with: "&quot;")
+                    )
+                case let .array(contents):
+                    return .array(contents.map(recurse))
+                case let .struct(contents):
+                    return .struct(
+                        .init(
+                            contents.map { key, value in
+                                (
+                                    key
+                                        .replacingOccurrences(of: "&", with: "&amp;")
+                                        .replacingOccurrences(of: "<", with: "&lt;")
+                                        .replacingOccurrences(of: ">", with: "&gt;")
+                                        .replacingOccurrences(of: "'", with: "&apos;")
+                                        .replacingOccurrences(of: "\"", with: "&quot;"),
+                                    recurse(value)
+                                )
+                            },
+                            uniquingKeysWith: { $1 }
+                        )
+                    )
+                case let .data(value):
+                    return .data(value.base64EncodedString())
+                case let .date(value):
+                    return .date(xmlDateFormatter.string(from: value))
+                case let .bool(value):
+                    return .bool(value ? "1" : "0")
+                case let .int(value):
+                    return .int(value.description)
+                case let .double(value):
+                    return .double(value.description)
+                }
+            }
+            return recurse($0)
+        }
     }
 }
 
@@ -186,6 +248,24 @@ final class SwiftXMLRPCTests: XCTestCase {
             "<value><\(type)>\(value)</\(type)></value>"
         }
 
+        let randomlySpacedXML = XMLRPCTestParameter.arbitrary.flatMap {
+            $0.value(
+                spaces: Gen.fromElements(of: [" ", "\n", "\t"])
+                    .proliferateNonEmpty
+                    .map { $0.joined() }
+            )
+        }
+
+        property("Random spacing is ignored", arguments: .init(replay: (StdGen(108627618, 9606), 0))) <- forAllNoShrink(randomlySpacedXML) {
+            switch XMLRPC.Parameter.deserialize(from: $0) {
+            case .success:
+                return true
+            case let .failure(error):
+                print(error)
+                return false
+            }
+        }
+
         property("Doubles") <- forAllNoShrink(
             Double.arbitrary.map(abs).flatMap { double in
                 Gen<String>.fromElements(of: ["+", "-", ""]).map {
@@ -217,7 +297,7 @@ final class SwiftXMLRPCTests: XCTestCase {
                 return false
             }
         }
-        
+
         property("Dates") <- forAllNoShrink(Date.arbitrary) { date in
             switch XMLRPC.Parameter.deserialize(from: value(type: "dateTime.iso8601", xmlDateFormatter.string(from: date))) {
             case .success:
@@ -227,7 +307,7 @@ final class SwiftXMLRPCTests: XCTestCase {
                 return false
             }
         }
-        
+
         property("Strings") <- forAllNoShrink(
             Gen.one(of: [
                 Gen.fromElements(of: [
