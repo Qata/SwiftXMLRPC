@@ -182,23 +182,6 @@ let xmlDateFormatter = {
 
 final class SwiftXMLRPCTests: XCTestCase {
     func test() throws {
-        
-        
-    print(
-        XMLRPC.Response.deserialize(
-            from: """
-            <?xml version="1.0" encoding="UTF-8"?><methodResponse><params><param><value><double>1.0</double></value></param></params></methodResponse>
-            """,
-            sourceName: "https://examplewebsite.com/XMLRPC"
-        )
-    )
-        
-        XMLRPC.Response.deserialize(
-            from: """
-            <?xml version="1.0" encoding="UTF-8"?><methodResponse><params><param><value><double>1.0</double></value></param></params></methodResponse>
-            """
-        )
-
         func value(type: String, _ value: String) -> String {
             "<value><\(type)>\(value)</\(type)></value>"
         }
