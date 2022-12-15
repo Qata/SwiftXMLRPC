@@ -8,7 +8,7 @@ All types support serialization and deserialization.
 
 # Usage
 ## Parsing
-    // success(SwiftXMLRPC.XMLRPC.Response.param(SwiftXMLRPC.XMLRPC.Parameter.double(1.0)))
+    // success(SwiftXMLRPC.XMLRPC.Response.params([SwiftXMLRPC.XMLRPC.Parameter.double(1.0)]))
     print(
         XMLRPC.Response.deserialize(
             from: """
@@ -20,12 +20,14 @@ All types support serialization and deserialization.
 ## Serialization
     let xml = XMLRPC.Call(
         method: "example.method",
-        param: .struct(
-            [ "first": .string("item"),
-              "second": .array([.double(1e9)]),
-              "third": .date(Date())
-            ]
-        )
+        params: [
+            .struct(
+                [ "first": .string("item"),
+                  "second": .array([.double(1e9)]),
+                  "third": .date(Date())
+                ]
+            )
+        ]
     ).serialize()
     
 # Tests
