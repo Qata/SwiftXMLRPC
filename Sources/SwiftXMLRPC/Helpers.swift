@@ -1,5 +1,37 @@
 import SwiftParsec
 
+extension GenericParser {
+    func many1Till<End>(
+        _ end: GenericParser<StreamType, UserState, End>
+    ) -> GenericParser<StreamType, UserState, [Result]> {
+        func scan() -> GenericParser<StreamType, UserState, [Result]> {
+            
+            let empty = end *>
+                GenericParser<StreamType, UserState, [Result]>(result: [])
+            
+            return empty <|> (self >>- { result in
+                
+                scan() >>- { results in
+                    
+                    let rs = results.prepending(result)
+                    return GenericParser<StreamType, UserState, [Result]>(
+                        result: rs
+                    )
+                    
+                }
+                
+            })
+            
+        }
+
+        return self >>- { first in
+            scan().map {
+                [first] + $0
+            }
+        }
+    }
+}
+
 extension GenericParser where Result == String {
     static var unquotedXMLString: GenericParser<String, (), Result> {
         (

@@ -12,16 +12,16 @@ public enum XMLRPC {
 public extension XMLRPC {
     struct Call: Hashable, Codable, XMLSerializable {
         public let method: String
-        public let param: XMLRPC.Parameter
+        public let params: [XMLRPC.Parameter]
         
-        public init(method: String, param: XMLRPC.Parameter) {
+        public init(method: String, params: [XMLRPC.Parameter]) {
             self.method = method
-            self.param = param
+            self.params = params
         }
     }
 
     enum Response: Hashable, Codable, XMLSerializable {
-        case param(XMLRPC.Parameter)
+        case params([XMLRPC.Parameter])
         case fault(code: Int, description: String)
     }
 

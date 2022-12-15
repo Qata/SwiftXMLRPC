@@ -26,6 +26,7 @@ extension XMLRPC.Call {
     }()
 
     static let parser: GenericParser<String, (), Self> = {
+        let char = StringParser.character
         let string = StringParser.string
         let spaces = StringParser.spaces
         let noneOf = StringParser.noneOf
@@ -42,6 +43,15 @@ extension XMLRPC.Call {
             body: string("param").xmlTag(
                 body: XMLRPC.Parameter.parser
             )
+            .many1Till(
+                (
+                    string("</")
+                    *> spaces
+                    *> string("params")
+                    *> spaces
+                    *> char(">")
+                ).attempt.lookAhead
+            )
         )
 
         return spaces *> xmlDecl.attempt *> string("methodCall").xmlTag(
@@ -49,7 +59,7 @@ extension XMLRPC.Call {
                 body: methodNameParser
             ) >>- { method in
                 (spaces *> params <* spaces).map { params in
-                    Self(method: method, param: params)
+                    Self(method: method, params: params)
                 }
             }
         )

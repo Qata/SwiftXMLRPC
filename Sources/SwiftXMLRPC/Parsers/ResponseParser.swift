@@ -19,15 +19,25 @@ extension XMLRPC.Response {
     }
 
     static let parser: GenericParser<String, (), Self> = {
+        let char = StringParser.character
         let string = StringParser.string
         let spaces = StringParser.spaces
         let noneOf = StringParser.noneOf
 
         let xmlDecl = string("<?xml") *> noneOf("?>").many.stringValue <* string("?>")
 
-        let params = Self.param <^> string("params").xmlTag(
+        let params = Self.params <^> string("params").xmlTag(
             body: string("param").xmlTag(
                 body: XMLRPC.Parameter.parser
+            )
+            .many1Till(
+                (
+                    string("</")
+                    *> spaces
+                    *> string("params")
+                    *> spaces
+                    *> char(">")
+                ).attempt.lookAhead
             )
         )
         let fault = string("fault").xmlTag(

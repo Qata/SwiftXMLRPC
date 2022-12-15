@@ -17,7 +17,7 @@ public extension XMLSerializable {
 
 public extension XMLRPC.Call {
     func serialize() -> String {
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><methodCall><methodName>\(method)</methodName><params><param>\(param.serialize())</param></params></methodCall>"
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><methodCall><methodName>\(method)</methodName><params>\(params.map { "<param>\($0.serialize())</param>" }.joined())</params></methodCall>"
     }
 }
 
@@ -33,8 +33,8 @@ public extension XMLRPC.Response {
                 ]
             )
             body = "<fault>\(fault.serialize())</fault>"
-        case let .param(param):
-            body = "<params><param>\(param.serialize())</param></params>"
+        case let .params(params):
+            body = "<params>\(params.map { "<param>\($0.serialize())</param>" }.joined())</params>"
         }
 
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><methodResponse>\(body)</methodResponse>"

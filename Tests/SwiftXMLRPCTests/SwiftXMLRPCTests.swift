@@ -154,7 +154,7 @@ extension XMLRPC.Parameter: Arbitrary {
 extension XMLRPC.Response: Arbitrary {
     public static var arbitrary: Gen<Self> {
         .one(of: [
-            XMLRPC.Parameter.arbitrary.map(Self.param),
+            XMLRPC.Parameter.arbitrary.proliferateNonEmpty.map(Self.params),
             Gen.zip(Int.arbitrary, String.arbitrary).map(Self.fault),
         ])
     }
@@ -168,7 +168,7 @@ extension XMLRPC.Call: Arbitrary {
                 + UnicodeScalar.allScalars(from: "A", through: "Z")
                 + [".", "/", "_", ":"]
             ).proliferateNonEmpty.string,
-            XMLRPC.Parameter.arbitrary
+            XMLRPC.Parameter.arbitrary.proliferateNonEmpty
         )
         .map(Self.init)
     }
