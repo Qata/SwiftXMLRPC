@@ -88,7 +88,7 @@ enum XMLRPCTestParameter {
         }
     }
 
-    public func asString() -> String {
+    public func serialize() -> String {
         value
     }
 }
@@ -182,6 +182,23 @@ let xmlDateFormatter = {
 
 final class SwiftXMLRPCTests: XCTestCase {
     func test() throws {
+        
+        
+    print(
+        XMLRPC.Response.deserialize(
+            from: """
+            <?xml version="1.0" encoding="UTF-8"?><methodResponse><params><param><value><double>1.0</double></value></param></params></methodResponse>
+            """,
+            sourceName: "https://examplewebsite.com/XMLRPC"
+        )
+    )
+        
+        XMLRPC.Response.deserialize(
+            from: """
+            <?xml version="1.0" encoding="UTF-8"?><methodResponse><params><param><value><double>1.0</double></value></param></params></methodResponse>
+            """
+        )
+
         func value(type: String, _ value: String) -> String {
             "<value><\(type)>\(value)</\(type)></value>"
         }
@@ -193,7 +210,7 @@ final class SwiftXMLRPCTests: XCTestCase {
                 }
             }
         ) { double in
-            switch XMLRPC.Parameter.parse(from: value(type: "double", double)) {
+            switch XMLRPC.Parameter.deserialize(from: value(type: "double", double)) {
             case .success:
                 return true
             case let .failure(error):
@@ -209,7 +226,7 @@ final class SwiftXMLRPCTests: XCTestCase {
                 }
             }
         ) { int in
-            switch XMLRPC.Parameter.parse(from: value(type: "int", int)) {
+            switch XMLRPC.Parameter.deserialize(from: value(type: "int", int)) {
             case .success:
                 return true
             case let .failure(error):
@@ -219,7 +236,7 @@ final class SwiftXMLRPCTests: XCTestCase {
         }
         
         property("Dates") <- forAllNoShrink(Date.arbitrary) { date in
-            switch XMLRPC.Parameter.parse(from: value(type: "dateTime.iso8601", xmlDateFormatter.string(from: date))) {
+            switch XMLRPC.Parameter.deserialize(from: value(type: "dateTime.iso8601", xmlDateFormatter.string(from: date))) {
             case .success:
                 return true
             case let .failure(error):
@@ -243,7 +260,7 @@ final class SwiftXMLRPCTests: XCTestCase {
             .proliferate
             .map { $0.joined() }
         ) { string in
-            switch XMLRPC.Parameter.parse(from: value(type: "string", string)) {
+            switch XMLRPC.Parameter.deserialize(from: value(type: "string", string)) {
             case let .success(.string(result)):
                 return result == string
                     .replacingOccurrences(of: "&amp;", with: "&")
@@ -262,11 +279,11 @@ final class SwiftXMLRPCTests: XCTestCase {
         property("Round trip Call") <- forAllNoShrink(
             XMLRPC.Call.arbitrary
         ) { call in
-            switch XMLRPC.Call.parse(from: call.asString()) {
+            switch XMLRPC.Call.deserialize(from: call.serialize()) {
             case .success:
                 return true
             case let .failure(error):
-                print(call.asString())
+                print(call.serialize())
                 print(error)
                 return false
             }
@@ -275,7 +292,7 @@ final class SwiftXMLRPCTests: XCTestCase {
         property("Round trip Response") <- forAllNoShrink(
             XMLRPC.Response.arbitrary
         ) { response in
-            switch XMLRPC.Response.parse(from: response.asString()) {
+            switch XMLRPC.Response.deserialize(from: response.serialize()) {
             case .success:
                 return true
             case let .failure(error):
@@ -287,7 +304,7 @@ final class SwiftXMLRPCTests: XCTestCase {
         property("Round trip Parameter") <- forAllNoShrink(
             XMLRPC.Parameter.arbitary(maxRecursionDepth: 2)
         ) { xml in
-            switch XMLRPC.Parameter.parse(from: xml.asString()) {
+            switch XMLRPC.Parameter.deserialize(from: xml.serialize()) {
             case .success:
                 return true
             case let .failure(error):

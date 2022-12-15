@@ -2,7 +2,7 @@ import Foundation
 import SwiftParsec
 
 extension XMLRPC.Parameter {
-    public static func parse(
+    public static func deserialize(
         from input: String,
         sourceName: String? = nil
     ) -> Result<Self, ParsingError> {

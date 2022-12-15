@@ -1,24 +1,28 @@
 import Foundation
 
 public protocol XMLSerializable {
-    func asString() -> String
-    func asData() -> Data
+    static func deserialize(
+        from input: String,
+        sourceName: String?
+    ) -> Result<Self, ParsingError>
+    func serialize() -> String
+    func serialize() -> Data
 }
 
 public extension XMLSerializable {
-    func asData() -> Data {
-        Data(asString().utf8)
+    func serialize() -> Data {
+        Data(serialize().utf8)
     }
 }
 
 public extension XMLRPC.Call {
-    func asString() -> String {
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><methodCall><methodName>\(method)</methodName><params><param>\(param.asString())</param></params></methodCall>"
+    func serialize() -> String {
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><methodCall><methodName>\(method)</methodName><params><param>\(param.serialize())</param></params></methodCall>"
     }
 }
 
 public extension XMLRPC.Response {
-    func asString() -> String {
+    func serialize() -> String {
         let body: String
         switch self {
         case let .fault(code, description):
@@ -28,9 +32,9 @@ public extension XMLRPC.Response {
                     "faultString": .string(description)
                 ]
             )
-            body = "<fault>\(fault.asString())</fault>"
+            body = "<fault>\(fault.serialize())</fault>"
         case let .param(param):
-            body = "<params><param>\(param.asString())</param></params>"
+            body = "<params><param>\(param.serialize())</param></params>"
         }
 
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?><methodResponse>\(body)</methodResponse>"
@@ -89,7 +93,7 @@ extension XMLRPC.Parameter {
         }
     }
 
-    public func asString() -> String {
+    public func serialize() -> String {
         value
     }
 }
