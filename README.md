@@ -4,7 +4,7 @@ SwiftXMLRPC is a lightweight parser for [XMLRPC](http://xmlrpc.com/spec.md).
 
 Under the hood, this project uses [SwiftParsec](https://github.com/davedufresne/SwiftParsec) to parse XML.
 
-All types support serialization and parsing.
+All types support serialization and deserialization.
 
 # Usage
 ## Parsing
