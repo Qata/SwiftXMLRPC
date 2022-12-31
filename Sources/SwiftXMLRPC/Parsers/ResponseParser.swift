@@ -45,7 +45,7 @@ extension XMLRPC.Response {
                 switch fault {
                 case let .struct(values):
                     switch (values["faultCode"], values["faultString"]) {
-                    case let (.int(code), .string(description)):
+                    case let (.int32(code), .string(description)):
                         return .init(result: Self.fault(code: code, description: description))
                     default:
                         return .fail("invalid fault xml")

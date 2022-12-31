@@ -50,12 +50,40 @@ extension XMLRPC.Parameter {
                 "\(sign)\(real)"
             }
         }
-        let xmlInt = (string("int").attempt <|> string("i4")).xmlTag(
+        let xmlNil = spaces *> (string("<") *> spaces *> string("nil") <* spaces <* string("/>"))
+            .map { _ in
+                Self.nil
+            }
+        let xmlInt = string("i") >>- { _ in
+            string("nt") <|> string("1") <|> string("2") <|> string("4") <|> string("1")
+        }
+        let xmlInt8 = string("i1").xmlTag(
             body: (spaces *> intParser <* spaces)
         ) >>- {
-            Int($0)
-                .map { GenericParser.init(result: Self.int($0)) }
-            ?? .fail("invalid integer")
+            Int8($0)
+                .map { GenericParser.init(result: Self.int8($0)) }
+            ?? .fail("invalid int8")
+        }
+        let xmlInt16 = string("i2").xmlTag(
+            body: (spaces *> intParser <* spaces)
+        ) >>- {
+            Int16($0)
+                .map { GenericParser.init(result: Self.int16($0)) }
+            ?? .fail("invalid int16")
+        }
+        let xmlInt32 = (string("i4").attempt <|> string("int")).xmlTag(
+            body: (spaces *> intParser <* spaces)
+        ) >>- {
+            Int32($0)
+                .map { GenericParser.init(result: Self.int32($0)) }
+            ?? .fail("invalid int32")
+        }
+        let xmlInt64 = string("i8").xmlTag(
+            body: (spaces *> intParser <* spaces)
+        ) >>- {
+            Int64($0)
+                .map { GenericParser.init(result: Self.int64($0)) }
+            ?? .fail("invalid int64")
         }
         let doubleParser = plusOrMinus >>- { sign in
             digit.many1.stringValue >>- { real in
@@ -106,12 +134,14 @@ extension XMLRPC.Parameter {
         let xmlData = string("base64").xmlTag(
             body: spaces *> dataParser <* spaces
         )
+
         return .recursive { param in
             let xmlArray = string("array").xmlTag(
                 body: string("data").xmlTag(
                     body: Self.array <^> param.manyTill(
                         (
-                            string("</")
+                            spaces
+                            *> string("</")
                             *> spaces
                             *> string("data")
                             *> spaces
@@ -133,7 +163,8 @@ extension XMLRPC.Parameter {
                 )
                 .manyTill(
                     (
-                        string("</")
+                        spaces
+                        *> string("</")
                         *> spaces
                         *> string("struct")
                         *> spaces
@@ -146,14 +177,19 @@ extension XMLRPC.Parameter {
             )
 
             return string("value").xmlTag(
-                body: xmlString.attempt
-                <|> xmlBool.attempt
-                <|> xmlInt.attempt
-                <|> xmlDouble.attempt
-                <|> xmlData.attempt
-                <|> xmlDate.attempt
-                <|> xmlArray.attempt
-                <|> xmlStruct.attempt
+                body: [
+                    xmlNil,
+                    xmlBool,
+                    xmlInt8,
+                    xmlInt16,
+                    xmlInt32,
+                    xmlInt64,
+                    xmlDouble,
+                    xmlData,
+                    xmlDate,
+                    xmlArray,
+                    xmlStruct,
+                ].reduce(xmlString.attempt) { $0 <|> $1.attempt }
             )
         }
     }()

@@ -28,7 +28,7 @@ public extension XMLRPC.Response {
         case let .fault(code, description):
             let fault = XMLRPC.Parameter.struct(
                 [
-                    "faultCode": .int(code),
+                    "faultCode": .int32(code),
                     "faultString": .string(description)
                 ]
             )
@@ -44,6 +44,8 @@ public extension XMLRPC.Response {
 extension XMLRPC.Parameter {
     var valueName: String {
         switch self {
+        case .nil:
+            fatalError()
         case .string:
             return "string"
         case .array:
@@ -56,20 +58,36 @@ extension XMLRPC.Parameter {
             return "dateTime.iso8601"
         case .bool:
             return "boolean"
-        case .int:
-            return "int"
+        case .int8:
+            return "i1"
+        case .int16:
+            return "i2"
+        case .int32:
+            return "i4"
+        case .int64:
+            return "i8"
         case .double:
             return "double"
         }
     }
 
     var value: String {
-        let name = valueName
-        return "<value><\(name)>\(contents)</\(name)></value>"
+        func enclosed(_ string: String) -> String {
+            "<value>\(string)</value>"
+        }
+        switch self {
+        case .nil:
+            return enclosed(contents)
+        default:
+            let name = valueName
+            return enclosed("<\(name)>\(contents)</\(name)>")
+        }
     }
 
     var contents: String {
         switch self {
+        case .nil:
+            return "<nil/>"
         case let .string(value):
             return value
                 .replacingOccurrences(of: "&", with: "&amp;")
@@ -86,7 +104,13 @@ extension XMLRPC.Parameter {
             return xmlDateFormatter.string(from: value)
         case let .bool(value):
             return (value ? 1 : 0).description
-        case let .int(value):
+        case let .int8(value):
+            return value.description
+        case let .int16(value):
+            return value.description
+        case let .int32(value):
+            return value.description
+        case let .int64(value):
             return value.description
         case let .double(value):
             return value.description

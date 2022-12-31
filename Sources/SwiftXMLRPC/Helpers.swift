@@ -62,20 +62,30 @@ extension GenericParser where Result == String {
 
 extension GenericParser
 where StreamType == String, UserState == (), Result == String {
-    func xmlTag<Result>(
-        body: GenericParser<String, (), Result>
-    ) -> GenericParser<String, (), Result> {
-        let char = StringParser.character
+    func tag(closing: Bool) -> GenericParser<String, (), Result> {
         let string = StringParser.string
+        let char = StringParser.character
         let spaces = StringParser.spaces
-
         return spaces
         *> char("<")
+        *> string(closing ? "/" : "")
         *> spaces
         *> self
         <* spaces
-        <* string(">") >>- {
-            body <* string("</") <* spaces <* string($0) <* spaces <* char(">") <* spaces
-        }
+        <* char(">")
+    }
+
+    var openingTag: GenericParser<String, (), Result> {
+        tag(closing: false)
+    }
+
+    var closingTag: GenericParser<String, (), Result> {
+        tag(closing: true)
+    }
+
+    func xmlTag<Result>(
+        body: GenericParser<String, (), Result>
+    ) -> GenericParser<String, (), Result> {
+        openingTag *> body <* closingTag
     }
 }

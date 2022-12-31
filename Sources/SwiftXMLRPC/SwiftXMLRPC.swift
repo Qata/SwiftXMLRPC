@@ -22,11 +22,15 @@ public extension XMLRPC {
 
     enum Response: Hashable, Codable, XMLSerializable {
         case params([XMLRPC.Parameter])
-        case fault(code: Int, description: String)
+        case fault(code: Int32, description: String)
     }
 
     indirect enum Parameter: Hashable, Codable, XMLSerializable {
-        case int(Int)
+        case `nil`
+        case int8(Int8)
+        case int16(Int16)
+        case int32(Int32)
+        case int64(Int64)
         case bool(Bool)
         case string(String)
         case double(Double)
