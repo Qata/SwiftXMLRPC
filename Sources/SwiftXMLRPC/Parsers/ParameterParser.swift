@@ -25,6 +25,51 @@ extension XMLRPC.Parameter {
             .union(.init(charactersIn: "+/=\r\n"))
     }()
 
+    private static var fullISO8601DateParser: GenericParser<String, (), Self> {
+        let char = StringParser.character
+        let digit = StringParser.digit
+        let plusOrMinus = StringParser.oneOf("+-")
+            .stringValue
+            .optional
+            .map { $0 ?? "" }
+
+        let timezone = char("Z").stringValue
+        <|> plusOrMinus
+            .concat(digit.count(2))
+            .concat(char(":").optional)
+            .concat(
+                (
+                    char(":").stringValue.concat(digit.count(2))
+                    <|> digit.count(2).stringValue
+                ).stringValue.optional
+            )
+
+        let date = digit
+            .count(4)
+            .stringValue
+            .concat(char("-").optional)
+            .concat(digit.count(2))
+            .concat(char("-").optional)
+            .concat(digit.count(2))
+
+        return date
+            .concat(char("T"))
+            .concat(digit.count(2))
+            .concat(char(":"))
+            .concat(digit.count(2))
+            .concat(char(":"))
+            .concat(digit.count(2))
+            .concat(timezone)
+            .flatMap {
+                ISO8601DateFormatter()
+                    .date(from: $0)
+                    .map {
+                        GenericParser(result: Self.date($0))
+                    }
+                ?? .fail("invalid iso8601 date")
+            }
+    }
+
     static let parser: GenericParser<String, (), Self> = {
         let char = StringParser.character
         let string = StringParser.string
@@ -35,7 +80,7 @@ extension XMLRPC.Parameter {
         let plusOrMinus = StringParser.oneOf("+-")
             .stringValue
             .optional
-            .map { $0.map { String($0) } ?? "" }
+            .map { $0 ?? "" }
 
         let xmlString = string("string").xmlTag(
             body: Self.string <^> .unquotedXMLString
@@ -98,24 +143,27 @@ extension XMLRPC.Parameter {
         let xmlDouble = Self.double <^> string("double").xmlTag(
             body: spaces *> doubleParser <* spaces
         )
-        let dateParser = digit.count(8).stringValue >>- { date in
-            char("T") *> digit.count(2).stringValue <* char(":") >>- { hour in
-                digit.count(2).stringValue <* char(":") >>- { minute in
-                    digit.count(2).stringValue >>- { second in
-                        xmlDateFormatter
-                            .date(from: "\(date)T\(hour):\(minute):\(second)")
-                            .map {
-                                GenericParser(
-                                    result: Self.date($0)
-                                )
-                            }
-                        ?? .fail("invalid iso8601 date")
+        let xmlDateParser = digit
+            .count(8)
+            .stringValue
+            .concat(char("T"))
+            .concat(digit.count(2))
+            .concat(char(":"))
+            .concat(digit.count(2))
+            .concat(char(":"))
+            .concat(digit.count(2))
+            .flatMap {
+                xmlDateFormatter.date(from: $0)
+                    .map {
+                        GenericParser(result: Self.date($0))
                     }
-                }
+                ?? .fail("invalid xmlrpc date")
             }
-        }
         let xmlDate = string("dateTime.iso8601").xmlTag(
-            body: spaces *> dateParser <* spaces
+            body: spaces *> xmlDateParser <* spaces
+        )
+        let xmlExtensionDate = string("dateTime").xmlTag(
+            body: spaces *> fullISO8601DateParser <* spaces
         )
         let dataParser = StringParser.satisfy {
             $0.unicodeScalars.allSatisfy(
@@ -187,6 +235,7 @@ extension XMLRPC.Parameter {
                     xmlDouble,
                     xmlData,
                     xmlDate,
+                    xmlExtensionDate,
                     xmlArray,
                     xmlStruct,
                 ].reduce(xmlString.attempt) { $0 <|> $1.attempt }

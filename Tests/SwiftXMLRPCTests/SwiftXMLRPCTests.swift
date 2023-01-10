@@ -8,6 +8,12 @@ extension Gen where A: Sequence, A.Element == UnicodeScalar {
     }
 }
 
+extension Gen {
+    var optional: Gen<A?> {
+        flatMap { .fromElements(of: [nil, $0]) }
+    }
+}
+
 extension UnicodeScalar {
     static func allScalars(from first: UnicodeScalar, upTo last: Unicode.Scalar) -> [UnicodeScalar] {
         return Array(first.value ..< last.value).compactMap(UnicodeScalar.init)
@@ -294,6 +300,34 @@ let xmlDateFormatter = {
     return formatter
 }()
 
+let iso8601Variant = Gen.fromElements(of: ["-", ""]).flatMap { hyphen in
+    Gen.fromElements(of: [
+        ":",
+//        ""
+    ]).flatMap { colon in
+        let timezone = Gen.one(of: [
+            .pure("Z"),
+            .zipWith(
+                .fromElements(of: ["+", "-"]),
+                .fromElements(of: ["", "00", ":00"])
+            ) { sign, minute in
+                "\(sign)00\(minute)"
+            }
+        ])
+        let time = Gen.one(
+            of: [
+                timezone.map {
+                    "T06\(colon)18\(colon)37\($0)"
+                },
+//                .pure("")
+            ]
+        )
+        return time.map {
+            "2023-01-02\($0)"
+        }
+    }
+}
+
 final class SwiftXMLRPCTests: XCTestCase {
     func test() throws {
         func value(type: String, _ value: String) -> String {
@@ -347,6 +381,19 @@ final class SwiftXMLRPCTests: XCTestCase {
                 return true
             case let .failure(error):
                 print(error)
+                return false
+            }
+        }
+
+        property("ISO8601 Dates") <- forAllNoShrink(iso8601Variant) { date in
+            switch XMLRPC.Parameter.deserialize(from: value(type: "dateTime", date)) {
+            case .success(.date):
+                return true
+            case let .failure(error):
+                print(date)
+                print(error)
+                return true
+            default:
                 return false
             }
         }

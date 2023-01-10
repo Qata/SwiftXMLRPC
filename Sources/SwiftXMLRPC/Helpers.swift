@@ -33,6 +33,74 @@ extension GenericParser {
 }
 
 extension GenericParser where Result == String {
+    func concat<Next: StringProtocol>(
+        _ next: GenericParser<StreamType, UserState, Next>
+    ) -> GenericParser<StreamType, UserState, Result> {
+        self >>- { current in
+            next.map {
+                current + .init($0)
+            }
+        }
+    }
+
+    func concat<Next: StringProtocol>(
+        _ next: GenericParser<StreamType, UserState, Next?>
+    ) -> GenericParser<StreamType, UserState, Result> {
+        self >>- { current in
+            next.map {
+                $0.map {
+                    current + .init($0)
+                } ?? current
+            }
+        }
+    }
+
+    func concat(
+        _ next: GenericParser<StreamType, UserState, Character>
+    ) -> GenericParser<StreamType, UserState, Result> {
+        self >>- { current in
+            next.map {
+                current + .init($0)
+            }
+        }
+    }
+
+    func concat(
+        _ next: GenericParser<StreamType, UserState, Character?>
+    ) -> GenericParser<StreamType, UserState, Result> {
+        self >>- { current in
+            next.map {
+                $0.map {
+                    current + .init($0)
+                } ?? current
+            }
+        }
+    }
+
+    func concat(
+        _ next: GenericParser<StreamType, UserState, [Character]>
+    ) -> GenericParser<StreamType, UserState, Result> {
+        self >>- { current in
+            next.map {
+                current + .init($0)
+            }
+        }
+    }
+
+    func concat(
+        _ next: GenericParser<StreamType, UserState, [Character]?>
+    ) -> GenericParser<StreamType, UserState, Result> {
+        self >>- { current in
+            next.map {
+                $0.map {
+                    current + .init($0)
+                } ?? current
+            }
+        }
+    }
+}
+
+extension GenericParser where Result == String {
     static var unquotedXMLString: GenericParser<String, (), Result> {
         (
             (
